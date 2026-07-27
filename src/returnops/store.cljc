@@ -20,7 +20,8 @@
 
   The ledger stays append-only."
   (:require [marketplace.order :as order]
-            [marketplace.returns :as ret]))
+            [marketplace.returns :as ret]
+            [marketplace.persist :as persist]))
 
 (defprotocol Store
   (order-record [s order-id])
@@ -34,6 +35,7 @@
   (returns-log [s])
   (commit-record! [s record])
   (append-ledger! [s fact])
+  (durable? [s] "False for the test-only memory backend.")
   (with-policies [s policies]))
 
 ;; ----------------------------- demo data -----------------------------
@@ -79,6 +81,7 @@
   (refund-instructions [_] (:refunds @a))
   (ledger [_] (:ledger @a))
   (returns-log [_] (:returns-log @a))
+  (durable? [_] false)
   (commit-record! [_ record]
     (swap! a update :returns-log conj record)
     (let [{:keys [op value payload]} record]
@@ -149,3 +152,67 @@
   any refund."
   [s order-id seller]
   (or (some-> (order-record s order-id) (order/seller-subtotal-minor seller)) 0))
+
+;; ----------------------------- durable store -----------------------------
+
+(defrecord KotobaseStore [st seed]
+  Store
+  ;; Orders are READ here and written by -marketplace-order into the
+  ;; same ref. A returns desk does not author the order it is returning
+  ;; against.
+  (order-record [_ id] (persist/get-doc (persist/ctx st :order :order/id) id))
+  (all-order-records [_] (persist/all-docs (persist/ctx st :order :order/id)))
+  (policy-for [_ sel] (persist/get-doc (persist/ctx st :return-policy :seller/id) sel))
+  (all-policies [_]
+    (into {} (map (juxt :seller/id identity)
+                  (persist/all-docs (persist/ctx st :return-policy :seller/id)))))
+  (rma-record [_ id] (persist/get-doc (persist/ctx st :rma :rma/id) id))
+  (all-rma-records [_] (persist/all-docs (persist/ctx st :rma :rma/id)))
+  ;; Refund INSTRUCTIONS, on an append-only stream. This actor never
+  ;; executes one -- moving the money is the settlement rail's, which
+  ;; refuses without a named human of its own. A stream rather than a
+  ;; document because an instruction that could be overwritten would let
+  ;; a refund be rewritten after the fact.
+  (refund-instructions [_] (persist/read-events (persist/stream-ctx st :refunds)))
+  (durable? [_] (not (:persist/memory? st)))
+  (ledger [_] (persist/read-events (persist/stream-ctx st :ledger)))
+  (returns-log [_] (persist/read-events (persist/stream-ctx st :returns-log)))
+  (commit-record! [_ record]
+    (persist/append-event! (persist/stream-ctx st :returns-log) seed record)
+    (let [{:keys [op value payload]} record
+          rctx (persist/ctx st :rma :rma/id)]
+      (case op
+        :open-rma
+        (when-let [r (:rma value)] (persist/put-doc! rctx r))
+
+        (:authorize-return :decline-return :record-return-shipment
+         :receive-return :record-inspection :resolve-return)
+        (when-let [r (:rma value)]
+          ;; The resolution carries the approver stamped by the operation
+          ;; graph, so the stored record names the human who decided.
+          (let [r' (cond-> r
+                     (and (= :resolve-return op) (:approved-by payload))
+                     (assoc-in [:rma/resolution :resolution/decided-by]
+                               (:approved-by payload)))]
+            (persist/put-doc! rctx r')
+            (when (= :resolve-return op)
+              (when-let [i (ret/refund-instruction r')]
+                (persist/append-event! (persist/stream-ctx st :refunds) seed i)))))
+
+        nil))
+    record)
+  (append-ledger! [_ fact]
+    (persist/append-event! (persist/stream-ctx st :ledger) seed fact))
+  (with-policies [this policies]
+    (doseq [[sel p] policies]
+      (persist/put-doc! (persist/ctx st :return-policy :seller/id)
+                        (assoc p :seller/id sel)))
+    this))
+
+(defn kotobase-store
+  "A durable store over a HOST-INJECTED database API. Throws when the
+  host has not wired one, per
+  `:policy/fail-closed-without-host-injection`."
+  [{:keys [db-api seq-fn]}]
+  (->KotobaseStore (persist/store {:db-api db-api :actor "returnops"})
+                   (or seq-fn (let [n (atom 0)] #(swap! n inc)))))

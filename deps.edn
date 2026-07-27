@@ -12,7 +12,12 @@
         ;; published policy applied -- see that namespace on why that makes
         ;; eligibility mechanical while resolution stays human.
         io.github.kotoba-lang/marketplace
-        {:local/root "../../kotoba-lang/marketplace"}}
+        {:local/root "../../kotoba-lang/marketplace"}
+        ;; HOST half only (`returnops.edge.worker`): q / pull / datoms / transact
+        ;; against kotobase.net with a per-request CACAO. The actor core
+        ;; stays portable .cljc with no network I/O.
+        io.github.kotoba-lang/kotobase-client
+        {:local/root "../../kotoba-lang/kotobase-client"}}
  :aliases
  {:dev {:override-deps
         {io.github.com-junkawasaki/langchain-clj
