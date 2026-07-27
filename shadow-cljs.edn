@@ -1,0 +1,9 @@
+;; The returns actor's Worker. :esm, the same shape every
+;; marketplace actor's host build uses.
+{:deps {:aliases [:cljs]}
+ :builds
+ {:worker
+  {:target :esm
+   :output-dir "dist"
+   :modules {:worker {:exports {default returnops.edge.worker/app}}}
+   :compiler-options {:output-feature-set :es2020 :infer-externs :auto}}}}
