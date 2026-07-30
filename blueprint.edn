@@ -13,4 +13,12 @@
  ;; The one governor in this stack that DECIDES something: eligibility
  ;; under the seller's own published policy is a calendar and a category
  ;; lookup, not a contested claim. Resolution stays human.
- :itonami.blueprint/decides :policy-eligibility-only}
+ :itonami.blueprint/decides :policy-eligibility-only
+ ;; Address added 2026-07-30. The Worker is deployed and /health answers 200.
+ ;; It is a *.workers.dev URL because this Worker declares neither a route nor
+ ;; a custom_domain, and no marketplace./api. host under itonami.cloud resolves
+ ;; — so this is the only real address, recorded as such rather than as a
+ ;; preferred one. :endpoint-kind is what a consumer should key off if it wants
+ ;; to treat a provisional address differently.
+ :itonami.blueprint/endpoint "https://cloud-itonami-marketplace-returns.04-feasts-minded.workers.dev"
+ :itonami.blueprint/endpoint-kind :workers-dev}
