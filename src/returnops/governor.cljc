@@ -55,7 +55,7 @@
   ESCALATE (SOFT):
     - LLM confidence below the floor.
     - `:resolve-return` and `:flag-return-concern` ALWAYS."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [marketplace.returns :as ret]
             [returnops.store :as store]))
 
@@ -185,7 +185,7 @@
       :detail (str ":effect は :propose のみ許可されるが " (pr-str (:effect proposal)) " が提案された")}]))
 
 (defn- text-blob [proposal]
-  (str/lower-case (pr-str (select-keys proposal [:op :summary :rationale :cites :value]))))
+  (str/lower (pr-str (select-keys proposal [:op :summary :rationale :cites :value]))))
 
 (defn- scope-exclusion-violations [proposal]
   (let [op (:op proposal)
