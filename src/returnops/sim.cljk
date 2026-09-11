@@ -1,7 +1,7 @@
 (ns returnops.sim
   "Offline demo: an eligible return authorizes itself, an out-of-window
   one is declined with a reason the buyer can escalate, and the
-  resolution waits for a human. `clojure -M:dev:run`."
+  resolution waits for a human. `kbb -M:dev:run`."
   (:require [langgraph.graph :as g]
             [marketplace.returns :as ret]
             [returnops.operation :as operation]
