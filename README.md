@@ -86,9 +86,9 @@ seller chasing a return needs to know whether it was never sent or is in
 the post, and those are different conversations.
 
 ```bash
-clojure -M:dev:run   # eligible authorize, out-of-window decline, human-gated resolution
-clojure -M:test      # 21 tests, 54 assertions
-clojure -M:lint
+kbb -M:dev:run   # eligible authorize, out-of-window decline, human-gated resolution
+kbb -M:test      # 21 tests, 54 assertions
+kbb -M:lint
 ```
 
 ## Rollout phases
