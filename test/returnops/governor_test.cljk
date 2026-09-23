@@ -1,5 +1,5 @@
 (ns returnops.governor-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [marketplace.returns :as ret]
             [returnops.advisor :as advisor]
             [returnops.governor :as governor]
